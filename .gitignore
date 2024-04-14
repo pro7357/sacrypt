@@ -1,2 +1,2 @@
-# exclude all .env in every folder
-**/.env
+.data
+bacrypt.config
