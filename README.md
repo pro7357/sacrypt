@@ -1,2 +1,2 @@
-# bacrypt
-Backup with encryption.
+# sacrypt
+Save and encrypt.
