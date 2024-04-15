@@ -85,13 +85,12 @@ _auto(){
         dir="${p##*/}"
         if [[ -d "$p" ]] && [[ -d "$dec_path/$dir" ]]; then
             _encrypt "$p"
+            _delete "$p"
         elif [[ -d "$p" ]] && [[ ! -d "$dec_path/$dir" ]]; then
             _decrypt "$p"
         elif [[ ! -d "$p" ]] && [[ -d "$dec_path/$dir" ]]; then
             _init_encrypt "$p"
         fi
-
-       _delete "$p"
     done
 
     if (( save_timer == 0 )); then
