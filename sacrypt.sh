@@ -1,10 +1,10 @@
 #!/usr/bin/bash
 _help(){ cat <<E0F
-Usage: ./bacrypt.sh [OPTION]
-Backup and encryption.
+Usage: ./sacrypt.sh [OPTION]
+Save and encrypt.
 
-      onloop    start Bacrypt on loop.
-      close     close Bacrypt if it running in loop.
+      onloop    start sacrypt on loop.
+      close     close sacrypt if it running in loop.
   -h, --help    display this help and exit
 E0F
 }
@@ -12,16 +12,16 @@ E0F
 BWD=$(dirname "$0")
 
 load_config(){
-    if [[ -f "$BWD/bacrypt.config" ]]; then
-        source "$BWD/bacrypt.config"
+    if [[ -f "$BWD/.config" ]]; then
+        source "$BWD/.config"
     elif [[ -f "$BWD/default.config" ]]; then
         source "$BWD/default.config"
         if [[ -z "$pub_key" || ${#enc_path[@]} -eq 0 ]]; then
-            echo "[bacrypt] Critical: Configuration not properly loaded."
+            echo "[sacrypt] Critical: Configuration not properly loaded."
             exit 2
         fi
     else
-        echo "[bacrypt] Critical: Config file not found at $BWD"
+        echo "[sacrypt] Critical: Config file not found at $BWD"
         exit 1
     fi
 }
@@ -29,9 +29,9 @@ load_config(){
 _encrypt(){
     local base="$dec_path/${1##*/}"
 
-    # Backup and encrypt files newer than marker file
-    find "$base" -type f -newer "$base/.grass" | while read -r file; do
-        echo "${file#$base/}" | anew "$base/.bacrypt"
+    # Save and encrypt files newer than marker file
+    find "$base" -type f -newer "$base/.sacrypt" | while read -r file; do
+        echo "${file#$base/}" | anew "$base/.sacrypt"
         name=$(sha256sum <<< "$pub_key/${file#$base/}" | head -c 64)
         tar -P --transform="s|$base/||" -c "$file" \
             | rage -r "$pub_key" > "$1/${name::1}/${name}"
@@ -39,7 +39,7 @@ _encrypt(){
     done
 
     # Update the marker file
-    touch "$base/.grass"
+    touch "$base/.sacrypt"
 }
 
 _init_encrypt(){
@@ -52,7 +52,7 @@ _init_encrypt(){
 
     local base="$dec_path/${1##*/}"
 
-    # Backup and encrypt everything
+    # Save and encrypt everything
     find "$base" -type f | while read -r file; do
         echo "$file"
         name=$(sha256sum <<< "$pub_key/${file#$base/}" | head -c 64)
@@ -61,7 +61,7 @@ _init_encrypt(){
     done
 
     # Create marker
-    touch "$base/.grass"
+    touch "$base/.sacrypt"
 }
 
 _decrypt(){
@@ -72,7 +72,7 @@ _decrypt(){
     find "$1" -type f -name "*" | while read -r file; do
         rage -d -i "$private_key" "$file" \
             | tar -xv -C "$base" \
-            | anew "$base/.bacrypt"
+            | anew "$base/.sacrypt"
     done
 }
 
@@ -94,8 +94,8 @@ _auto(){
 
     if (( save_timer == 0 )); then
         return
-    elif (( $(pgrep bacrypt.sh | wc -l) < 1 )); then
-        $BWD/bacrypt.sh onloop > /dev/null &
+    elif (( $(pgrep sacrypt.sh | wc -l) < 1 )); then
+        $BWD/sacrypt.sh onloop > /dev/null &
     fi
 }
 
@@ -115,7 +115,7 @@ _auto_encrypt(){
 _delete(){
     local dir="${1##*/}"
     IFS=$'\n'
-    for line in $(< "$dec_path/$dir/.bacrypt"); do
+    for line in $(< "$dec_path/$dir/.sacrypt"); do
         #printf "%s\n" "$line"
         if [[ ! -e "$dec_path/$dir/$line" ]]; then
             name=$(sha256sum <<< "$pub_key/${line}" | head -c 64)
@@ -123,15 +123,15 @@ _delete(){
             #echo "delete: $1/${name::1}/${name}"
             rm -v "$1/${name::1}/${name}"
 
-            sed -i "/$line/d" "$dec_path/$dir/.bacrypt"
+            sed -i "/$line/d" "$dec_path/$dir/.sacrypt"
         fi
     done
 }
 
 _close(){
-    pkill bacrypt.sh
-    if (( $(pgrep bacrypt.sh | wc -l) >= 1 )); then
-        echo "[bacrypt] Error: Fail to close bacrypt."
+    pkill sacrypt.sh
+    if (( $(pgrep sacrypt.sh | wc -l) >= 1 )); then
+        echo "[sacrypt] Error: Fail to close sacrypt."
     fi
 }
 
@@ -147,7 +147,7 @@ _main(){
         _auto
         #_delete "$BWD/.data/pub"
     else
-        echo "[bacrypt] Error: What this? $@"
+        echo "[sacrypt] Error: What this? $@"
     fi
 }
 _main "$@"
