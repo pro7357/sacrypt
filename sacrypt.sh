@@ -96,7 +96,7 @@ _auto(){
 
     if (( save_timer == 0 )); then
         return
-    elif (( "$(pgrep -cx "sacrypt.sh")" -le 1 )); then
+    elif (( "$(pgrep -cx "sacrypt.sh")" <= 1 )); then
         $BWD/sacrypt.sh autosave > /dev/null &
     fi
 }
@@ -130,7 +130,7 @@ _delete(){
 
 _close(){
     pkill sacrypt.sh
-    if (( "$(pgrep -cx "sacrypt.sh")" -gt 0 )); then
+    if (( "$(pgrep -cx "sacrypt.sh")" > 0 )); then
         echo "[sacrypt] Error: Fail to close sacrypt."
     fi
 }
