@@ -1,10 +1,12 @@
 #!/usr/bin/bash
 _help(){ cat <<E0F
-Usage: ./sacrypt.sh [OPTION]
+Usage: ./sacrypt.sh [OPTION]... [COMMAND]
 Save and encrypt.
 
-      onloop    start sacrypt on loop.
-      close     close sacrypt if it running in loop.
+Command:
+  autosave      Run autosave in the background.
+  close         Close autosave.
+Option:
   -h, --help    display this help and exit
 E0F
 }
@@ -35,7 +37,6 @@ _encrypt(){
         name=$(sha256sum <<< "$pub_key/${file#$base/}" | head -c 64)
         tar -P --transform="s|$base/||" -c "$file" \
             | rage -r "$pub_key" > "$1/${name::1}/${name}"
-
     done
 
     # Update the marker file
@@ -95,8 +96,8 @@ _auto(){
 
     if (( save_timer == 0 )); then
         return
-    elif (( $(pgrep sacrypt.sh | wc -l) < 1 )); then
-        $BWD/sacrypt.sh onloop > /dev/null &
+    elif (( "$(pgrep -cx "sacrypt.sh")" -le 1 )); then
+        $BWD/sacrypt.sh autosave > /dev/null &
     fi
 }
 
@@ -117,11 +118,9 @@ _delete(){
     local dir="${1##*/}"
     IFS=$'\n'
     for line in $(< "$dec_path/$dir/.sacrypt"); do
-        #printf "%s\n" "$line"
         if [[ ! -e "$dec_path/$dir/$line" ]]; then
             name=$(sha256sum <<< "$pub_key/${line}" | head -c 64)
-            echo "missing $dec_path/$dir/$line"
-            #echo "delete: $1/${name::1}/${name}"
+            echo "missing '$dec_path/$dir/$line'"
             rm -v "$1/${name::1}/${name}"
 
             sed -i "/$line/d" "$dec_path/$dir/.sacrypt"
@@ -131,7 +130,7 @@ _delete(){
 
 _close(){
     pkill sacrypt.sh
-    if (( $(pgrep sacrypt.sh | wc -l) >= 1 )); then
+    if (( "$(pgrep -cx "sacrypt.sh")" -gt 0 )); then
         echo "[sacrypt] Error: Fail to close sacrypt."
     fi
 }
@@ -140,13 +139,12 @@ _main(){
     load_config
     if [[ $1 == '-h' || $1 == --help ]]; then
         _help
-    elif [[ $1 == 'onloop' ]]; then
+    elif [[ $1 == 'autosave' ]]; then
         _auto_encrypt
     elif [[ $1 == 'close' ]]; then
         _close
     elif [[ -z $1 ]]; then
         _auto
-        #_delete "$BWD/.data/pub"
     else
         echo "[sacrypt] Error: What this? $@"
     fi
