@@ -18,7 +18,7 @@ load_config(){
         source "$BWD/.config"
     elif [[ -f "$BWD/default.config" ]]; then
         source "$BWD/default.config"
-        if [[ -z "$pub_key" || ${#enc_path[@]} -eq 0 ]]; then
+        if [[ -z "$PUBLIC_KEY" || ${#ENCRYPT_PATH[@]} -eq 0 ]]; then
             echo "[sacrypt] Critical: Configuration not properly loaded."
             exit 2
         fi
@@ -29,7 +29,7 @@ load_config(){
 }
 
 _encrypt(){
-    local base="$dec_path/${1##*/}"
+    local base="$DECRYPT_PATH/${1##*/}"
     if [[ ! -f "$base/.sacrypt" ]]; then
        touch -t 197001010000.01 "$base/.sacrypt"
     fi
@@ -37,9 +37,9 @@ _encrypt(){
     # Save and encrypt files newer than marker file
     find "$base" -type f -newer "$base/.sacrypt" | while read -r file; do
         echo "${file#$base/}" | anew "$base/.sacrypt"
-        name=$(sha256sum <<< "$pub_key/${file#$base/}" | head -c 64)
+        name=$(sha256sum <<< "$PUBLIC_KEY/${file#$base/}" | head -c 64)
         tar -P --transform="s|$base/||" -c "$file" \
-            | rage -r "$pub_key" > "$1/${name::1}/${name}"
+            | rage -r "$PUBLIC_KEY" > "$1/${name::1}/${name}"
     done
 
     # Update the marker file
@@ -54,14 +54,14 @@ _init_encrypt(){
         mkdir -p "$hex"
     done
 
-    local base="$dec_path/${1##*/}"
+    local base="$DECRYPT_PATH/${1##*/}"
 
     # Save and encrypt everything
     find "$base" -type f | while read -r file; do
         echo "$file"
-        name=$(sha256sum <<< "$pub_key/${file#$base/}" | head -c 64)
+        name=$(sha256sum <<< "$PUBLIC_KEY/${file#$base/}" | head -c 64)
         tar -P --transform="s|$base/||" -c "$file" \
-            | rage -r "$pub_key" > "$1/${name::1}/${name}"
+            | rage -r "$PUBLIC_KEY" > "$1/${name::1}/${name}"
     done
 
     # Create marker
@@ -69,35 +69,35 @@ _init_encrypt(){
 }
 
 _decrypt(){
-    local base="$dec_path/${1##*/}"
+    local base="$DECRYPT_PATH/${1##*/}"
     mkdir -p "$base"
 
     # Decrypt and extract files
     find "$1" -type f -name "*" | while read -r file; do
-        rage -d -i "$private_key" "$file" \
+        rage -d -i "$PRIVATE_KEY" "$file" \
             | tar -xv -C "$base" \
             | anew "$base/.sacrypt"
     done
 }
 
 _auto(){
-    if [[ ! -d $dec_path ]]; then
-        mkdir -p $dec_path
+    if [[ ! -d $DECRYPT_PATH ]]; then
+        mkdir -p $DECRYPT_PATH
     fi
 
-    for p in "${enc_path[@]}"; do
+    for p in "${ENCRYPT_PATH[@]}"; do
         dir="${p##*/}"
-        if [[ -d "$p" ]] && [[ -d "$dec_path/$dir" ]]; then
+        if [[ -d "$p" ]] && [[ -d "$DECRYPT_PATH/$dir" ]]; then
             _encrypt "$p"
             _delete "$p"
-        elif [[ -d "$p" ]] && [[ ! -d "$dec_path/$dir" ]]; then
+        elif [[ -d "$p" ]] && [[ ! -d "$DECRYPT_PATH/$dir" ]]; then
             _decrypt "$p"
-        elif [[ ! -d "$p" ]] && [[ -d "$dec_path/$dir" ]]; then
+        elif [[ ! -d "$p" ]] && [[ -d "$DECRYPT_PATH/$dir" ]]; then
             _init_encrypt "$p"
         fi
     done
 
-    if (( save_timer == 0 )); then
+    if (( SAVE_TIMER == 0 )); then
         return
     elif (( "$(pgrep -cx "sacrypt.sh")" <= 1 )); then
         $BWD/sacrypt.sh autosave > /dev/null &
@@ -106,27 +106,27 @@ _auto(){
 
 _auto_encrypt(){
     while true; do
-        for p in "${enc_path[@]}"; do
+        for p in "${ENCRYPT_PATH[@]}"; do
             dir="${p##*/}"
-            if [[ -d "$p" ]] && [[ -d "$dec_path/$dir" ]]; then
+            if [[ -d "$p" ]] && [[ -d "$DECRYPT_PATH/$dir" ]]; then
                 _encrypt "$p"
                 _delete "$p"
             fi
         done
-        sleep $save_timer
+        sleep $SAVE_TIMER
     done
 }
 
 _delete(){
     local dir="${1##*/}"
     IFS=$'\n'
-    for line in $(< "$dec_path/$dir/.sacrypt"); do
-        if [[ ! -e "$dec_path/$dir/$line" ]]; then
-            name=$(sha256sum <<< "$pub_key/${line}" | head -c 64)
-            echo "missing '$dec_path/$dir/$line'"
+    for line in $(< "$DECRYPT_PATH/$dir/.sacrypt"); do
+        if [[ ! -e "$DECRYPT_PATH/$dir/$line" ]]; then
+            name=$(sha256sum <<< "$PUBLIC_KEY/${line}" | head -c 64)
+            echo "missing '$DECRYPT_PATH/$dir/$line'"
             rm -v "$1/${name::1}/${name}"
 
-            sed -i "/$line/d" "$dec_path/$dir/.sacrypt"
+            sed -i "/$line/d" "$DECRYPT_PATH/$dir/.sacrypt"
         fi
     done
 }
