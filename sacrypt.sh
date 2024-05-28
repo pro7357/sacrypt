@@ -30,6 +30,9 @@ load_config(){
 
 _encrypt(){
     local base="$dec_path/${1##*/}"
+    if [[ ! -f "$base/.sacrypt" ]]; then
+       touch -t 197001010000.01 "$base/.sacrypt"
+    fi
 
     # Save and encrypt files newer than marker file
     find "$base" -type f -newer "$base/.sacrypt" | while read -r file; do
